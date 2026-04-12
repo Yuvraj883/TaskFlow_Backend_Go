@@ -206,7 +206,7 @@ All responses follow consistent JSON format:
 
 ---
 
-## 11. What I’d Do With More Time
+## 11. Future Scope of Enhancements
 
 * Implement role-based access control (RBAC)
 * Improve validation (e.g., stricter enums, date validation)
