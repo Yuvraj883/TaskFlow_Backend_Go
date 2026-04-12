@@ -15,7 +15,7 @@ import (
 func main() {
 	err := godotenv.Load("../.env")
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Println("Error loading .env file")
 	}
 	db.Connect()
 	r := gin.Default()
@@ -36,6 +36,10 @@ func main() {
 	protected.Use(authMiddleware.AuthMiddleware())
 	protected.POST("/projects", handlers.CreateProject)
 	protected.GET("/projects", handlers.GetProjects)
+	protected.POST("/projects/:id/tasks", handlers.CreateTask)
+	protected.GET("/projects/:id/tasks", handlers.GetTasks)
+	protected.DELETE("/tasks/:id", handlers.DeleteTask)
+	protected.PATCH("/tasks/:id", handlers.UpdateTask)
 
 	port := os.Getenv("PORT")
 	if port == "" {
