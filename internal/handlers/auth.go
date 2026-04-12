@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	// "net/http"
 	// "time"
 
@@ -14,16 +13,28 @@ import (
 )
 
 type RegisterInput struct {
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Name     string `json:"name" binding:"required"`
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=6"`
 }
 
 func Register(c *gin.Context) {
 	var input RegisterInput
 
-	if err := c.BindJSON(&input); err != nil {
-		c.JSON(400, gin.H{"error": "invalid input"})
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(400, utils.FormatValidationError(err))
+		return
+	}
+
+	// Check if user already exists
+	var exists bool
+	err := db.DB.QueryRow(c.Request.Context(), "SELECT EXISTS(SELECT 1 FROM users WHERE email=$1)", input.Email).Scan(&exists)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "database error"})
+		return
+	}
+	if exists {
+		c.JSON(400, gin.H{"error": "validation failed", "fields": gin.H{"email": "already exists"}})
 		return
 	}
 
@@ -31,7 +42,7 @@ func Register(c *gin.Context) {
 
 	id := uuid.New()
 
-	_, err := db.DB.Exec(context.Background(),
+	_, err = db.DB.Exec(c.Request.Context(),
 		"INSERT INTO users (id, name, email, password) VALUES ($1,$2,$3,$4)",
 		id, input.Name, input.Email, string(hashed),
 	)
@@ -45,21 +56,21 @@ func Register(c *gin.Context) {
 }
 
 type LoginInput struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
 }
 
 func Login(c *gin.Context) {
 	var input LoginInput
 
-	if err := c.BindJSON(&input); err != nil {
-		c.JSON(400, gin.H{"error": "validation failed"})
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(400, utils.FormatValidationError(err))
 		return
 	}
 
 	var id, name, email, hashedPassword string
 
-	err := db.DB.QueryRow(context.Background(),
+	err := db.DB.QueryRow(c.Request.Context(),
 		"SELECT id, name, email, password FROM users WHERE email=$1",
 		input.Email,
 	).Scan(&id, &name, &email, &hashedPassword)
