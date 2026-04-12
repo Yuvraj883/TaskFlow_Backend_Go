@@ -35,6 +35,7 @@ func main() {
 	protected := r.Group("/")
 	protected.Use(authMiddleware.AuthMiddleware())
 	protected.POST("/projects", handlers.CreateProject)
+	protected.GET("/projects", handlers.GetProjects)
 
 	port := os.Getenv("PORT")
 	if port == "" {
