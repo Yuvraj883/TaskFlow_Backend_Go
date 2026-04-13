@@ -105,7 +105,8 @@ func GetProject(c *gin.Context) {
 
 	var project map[string]interface{} = make(map[string]interface{})
 	var pid, name, ownerID string
-	var description, updatedAt *string
+	var description *string
+	var updatedAt time.Time
 
 	err := db.DB.QueryRow(c.Request.Context(),
 		`SELECT id, name, description, owner_id, updated_at FROM projects WHERE id = $1`, id).
