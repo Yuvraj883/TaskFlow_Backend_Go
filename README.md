@@ -114,33 +114,33 @@ Password: password123
 
 ### Auth
 
-* `POST /auth/register`
-* `POST /auth/login`
+* `POST /api/v1/auth/register`
+* `POST /api/v1/auth/login`
 
 ---
 
 ### Projects
 
-* `GET /projects` → List projects
-* `POST /projects` → Create project
-* `GET /projects/:id` → Get project with tasks
-* `PATCH /projects/:id` → Update project
-* `DELETE /projects/:id` → Delete project
+* `GET /api/v1/projects` → List projects
+* `POST /api/v1/projects` → Create project
+* `GET /api/v1/projects/:id` → Get project with tasks
+* `PATCH /api/v1/projects/:id` → Update project
+* `DELETE /api/v1/projects/:id` → Delete project
 
 ---
 
 ### Tasks
 
-* `GET /projects/:id/tasks` → List tasks (supports filters)
+* `GET /api/v1/projects/:id/tasks` → List tasks (supports filters)
 
   * `?status=todo|in_progress|done`
   * `?assignee=<user_id>`
 
-* `POST /projects/:id/tasks` → Create task
+* `POST /api/v1/projects/:id/tasks` → Create task
 
-* `PATCH /tasks/:id` → Update task
+* `PATCH /api/v1/tasks/:id` → Update task
 
-* `DELETE /tasks/:id` → Delete task
+* `DELETE /api/v1/tasks/:id` → Delete task
 
 ---
 
@@ -227,7 +227,7 @@ All responses follow consistent JSON format:
 
 ```bash
 # Register
-POST /auth/register
+POST /api/v1/auth/register
 
 # Login → get token
 

@@ -41,13 +41,15 @@ func main() {
 
 	// r.POST("/auth/register", handlers.Register)
 
-	auth := r.Group("/auth")
+	api := r.Group("/api/v1")
+
+	auth := api.Group("/auth")
 	auth.Use(middleware.RateLimiter(5, 10*time.Second))
 	{
 		auth.POST("/register", handlers.Register)
 		auth.POST("/login", handlers.Login)
 	}
-	protected := r.Group("/")
+	protected := api.Group("/")
 	protected.Use(middleware.AuthMiddleware())
 	protected.POST("/projects", handlers.CreateProject)
 	protected.GET("/projects", handlers.GetProjects)
