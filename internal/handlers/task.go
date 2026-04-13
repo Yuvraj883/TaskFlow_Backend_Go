@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	// "net/http"
 
@@ -82,7 +83,7 @@ func CreateTask(c *gin.Context) {
 	}
 
 	c.JSON(201, gin.H{
-		"id": taskID,
+		"id":         taskID,
 		"updated_at": updatedAt,
 	})
 }
@@ -133,7 +134,8 @@ func GetTasks(c *gin.Context) {
 	var tasks []gin.H
 
 	for rows.Next() {
-		var id, title, status, priority, updatedAt string
+		var id, title, status, priority string
+		var updatedAt *time.Time
 		rows.Scan(&id, &title, &status, &priority, &updatedAt)
 
 		tasks = append(tasks, gin.H{
@@ -193,13 +195,13 @@ func DeleteTask(c *gin.Context) {
 }
 
 type UpdateTaskInput struct {
-	Title       *string `json:"title"`
-	Description *string `json:"description"`
-	Status      *string `json:"status" binding:"omitempty,oneof=todo in_progress done"`
-	Priority    *string `json:"priority" binding:"omitempty,oneof=low medium high"`
-	AssigneeID  *string `json:"assignee_id"`
-	DueDate     *string `json:"due_date"`
-	UpdatedAt   *string `json:"updated_at"`
+	Title       *string    `json:"title"`
+	Description *string    `json:"description"`
+	Status      *string    `json:"status" binding:"omitempty,oneof=todo in_progress done"`
+	Priority    *string    `json:"priority" binding:"omitempty,oneof=low medium high"`
+	AssigneeID  *string    `json:"assignee_id"`
+	DueDate     *string    `json:"due_date"`
+	UpdatedAt   *time.Time `json:"updated_at"`
 }
 
 func UpdateTask(c *gin.Context) {
@@ -269,7 +271,7 @@ func UpdateTask(c *gin.Context) {
 	}
 
 	query = query[:len(query)-1] // remove trailing comma
-	
+
 	if input.UpdatedAt != nil {
 		query += fmt.Sprintf(" WHERE id=$%d AND updated_at=$%d", i, i+1)
 		args = append(args, taskID, *input.UpdatedAt)

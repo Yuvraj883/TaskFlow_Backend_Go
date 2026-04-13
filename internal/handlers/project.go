@@ -6,6 +6,8 @@ import (
 	"taskflow/internal/db"
 	"taskflow/internal/utils"
 
+	"time"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,7 +27,8 @@ func CreateProject(c *gin.Context) {
 
 	userID, _ := c.Get("user_id")
 
-	var id, updatedAt string
+	var id string
+	var updatedAt time.Time
 
 	err := db.DB.QueryRow(c.Request.Context(),
 		`INSERT INTO projects (name, description, owner_id, updated_at)
@@ -51,7 +54,7 @@ func GetProjects(c *gin.Context) {
 
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "10")
-	
+
 	page, err := strconv.Atoi(pageStr)
 	if err != nil || page < 1 {
 		page = 1
@@ -82,7 +85,7 @@ func GetProjects(c *gin.Context) {
 	for rows.Next() {
 		var id, name string
 		var description *string
-		var updatedAt *string
+		var updatedAt *time.Time
 
 		rows.Scan(&id, &name, &description, &updatedAt)
 
@@ -107,7 +110,7 @@ func GetProject(c *gin.Context) {
 	err := db.DB.QueryRow(c.Request.Context(),
 		`SELECT id, name, description, owner_id, updated_at FROM projects WHERE id = $1`, id).
 		Scan(&pid, &name, &description, &ownerID, &updatedAt)
-	
+
 	if err != nil {
 		c.JSON(404, gin.H{"error": "not found"})
 		return
@@ -130,17 +133,18 @@ func GetProject(c *gin.Context) {
 	var tasks []gin.H
 	for rows.Next() {
 		var t_id, t_title, t_status, t_priority string
-		var t_assignee_id, t_due_date, t_created_at, t_updated_at *string
+		var t_updated_at *time.Time
+		var t_assignee_id, t_due_date, t_created_at *string
 		rows.Scan(&t_id, &t_title, &t_status, &t_priority, &t_assignee_id, &t_due_date, &t_created_at, &t_updated_at)
 		tasks = append(tasks, gin.H{
-			"id": t_id,
-			"title": t_title,
-			"status": t_status,
-			"priority": t_priority,
+			"id":          t_id,
+			"title":       t_title,
+			"status":      t_status,
+			"priority":    t_priority,
 			"assignee_id": t_assignee_id,
-			"due_date": t_due_date,
-			"created_at": t_created_at,
-			"updated_at": t_updated_at,
+			"due_date":    t_due_date,
+			"created_at":  t_created_at,
+			"updated_at":  t_updated_at,
 		})
 	}
 	if tasks == nil {
@@ -200,22 +204,22 @@ func GetProjectStats(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{
-		"total": total,
-		"by_status": byStatus,
+		"total":       total,
+		"by_status":   byStatus,
 		"by_assignee": byAssignee,
 	})
 }
 
 type UpdateProjectInput struct {
-	Name        *string `json:"name"`
-	Description *string `json:"description"`
-	UpdatedAt   *string `json:"updated_at"`
+	Name        *string    `json:"name"`
+	Description *string    `json:"description"`
+	UpdatedAt   *time.Time `json:"updated_at"`
 }
 
 func UpdateProject(c *gin.Context) {
 	id := c.Param("id")
 	userID, _ := c.Get("user_id")
-	
+
 	var exists bool
 	err := db.DB.QueryRow(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM projects WHERE id=$1 AND owner_id=$2)`, id, userID).Scan(&exists)
 	if err != nil || !exists {
@@ -267,11 +271,11 @@ func UpdateProject(c *gin.Context) {
 	db.DB.QueryRow(c.Request.Context(), `SELECT name, description, updated_at FROM projects WHERE id=$1`, id).Scan(&updatedName, &updatedDesc, &newUpdatedAt)
 
 	c.JSON(200, gin.H{
-		"id": id,
-		"name": updatedName,
+		"id":          id,
+		"name":        updatedName,
 		"description": updatedDesc,
-		"owner_id": userID,
-		"updated_at": newUpdatedAt,
+		"owner_id":    userID,
+		"updated_at":  newUpdatedAt,
 	})
 }
 
