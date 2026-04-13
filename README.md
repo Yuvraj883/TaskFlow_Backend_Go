@@ -20,7 +20,18 @@ This submission targets the **Backend Engineer** role and includes:
 - **Migration-driven schema:** no auto-migrate; schema changes are explicit and reviewable in versioned SQL files.
 - **Tradeoffs:** no ORM, no API docs generator, and no frontend in this repo because this is a backend-only submission.
 
-## 3. Running Locally
+## 3. Project Structure
+
+- `cmd/` - application entrypoint and route registration.
+- `internal/handlers/` - HTTP handlers for auth, projects, and tasks.
+- `internal/middleware/` - auth, rate limiting, CORS, and structured request logging.
+- `internal/db/` - PostgreSQL connection initialization.
+- `internal/utils/` - JWT, validation formatting, and logger setup helpers.
+- `migrations/` - schema and seed SQL migrations with matching `up`/`down` files.
+- `scripts/` - container entrypoint script that runs migrations before starting the API.
+- `docs/` - Postman collection for endpoint verification.
+
+## 4. Running Locally
 
 Assuming Docker is installed:
 
@@ -45,7 +56,7 @@ Run tests:
 go test ./...
 ```
 
-## 4. Running Migrations
+## 5. Running Migrations
 
 Migrations run automatically when the backend container starts via `scripts/entrypoint.sh`.
 
@@ -56,14 +67,14 @@ docker compose exec backend /app/migrate -path /app/migrations -database "$DATAB
 docker compose exec backend /app/migrate -path /app/migrations -database "$DATABASE_URL" down 1
 ```
 
-## 5. Test Credentials
+## 6. Test Credentials
 
 Seed data is applied through migration `000004_seed_data.up.sql`.
 
 - Email: `test@example.com`
 - Password: `password123`
 
-## 6. API Reference
+## 7. API Reference
 
 All responses are JSON.  
 All non-auth endpoints require:
@@ -176,9 +187,10 @@ Postman collection:
 
 - `docs/taskflow-backend.postman_collection.json`
 
-## 7. What I'd Do With More Time
+## 8. What I'd Do With More Time
 
-- Add richer integration tests for project/task authorization and edge-case validation.
-- Add OpenAPI/Swagger for contract-level documentation and easier API review.
-- Improve observability with request IDs, trace correlation, and metrics.
-- Add role-based access control and invite-based project collaboration.
+- Add richer integration tests for authorization edge cases (`401/403/404`) and optimistic-concurrency flows.
+- Replace in-memory rate limiting with Redis-backed distributed rate limiting for multi-instance deployments.
+- Add Redis-backed token denylisting and logout/session revocation support for tighter auth control.
+- Cache high-read endpoints (for example, project lists and stats) with Redis + short TTL + mutation-triggered invalidation.
+- Add OpenAPI/Swagger documentation and a basic CI pipeline (lint, tests, migration smoke check).

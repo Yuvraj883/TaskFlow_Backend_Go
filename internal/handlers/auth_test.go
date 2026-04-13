@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"taskflow/internal/db"
 	"taskflow/internal/utils"
 	"testing"
@@ -17,6 +19,14 @@ import (
 func setupTestRouter() *gin.Engine {
 	// Initialize connection logic mimicking main.go
 	godotenv.Load("../../.env")
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" || dsn == "postgres_url" {
+		dsn = "postgres://postgres:postgres@localhost:5432/taskflow?sslmode=disable"
+	}
+	// Docker compose uses db hostname, but local go test needs localhost.
+	dsn = strings.Replace(dsn, "@db:", "@localhost:", 1)
+	_ = os.Setenv("DATABASE_URL", dsn)
+
 	db.Connect()
 	utils.InitLogger()
 
