@@ -38,7 +38,11 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	hashed, _ := bcrypt.GenerateFromPassword([]byte(input.Password), 12)
+	hashed, err := bcrypt.GenerateFromPassword([]byte(input.Password), 12)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "could not hash password"})
+		return
+	}
 
 	id := uuid.New()
 

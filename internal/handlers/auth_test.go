@@ -22,8 +22,7 @@ func setupTestRouter() *gin.Engine {
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	api := r.Group("/api/v1")
-	auth := api.Group("/auth")
+	auth := r.Group("/auth")
 	{
 		auth.POST("/register", Register)
 		auth.POST("/login", Login)
@@ -53,7 +52,7 @@ func TestAuthFlow(t *testing.T) {
 			"password": testPassword,
 		}
 		jsonValue, _ := json.Marshal(body)
-		req, _ := http.NewRequest("POST", "/api/v1/auth/register", bytes.NewBuffer(jsonValue))
+		req, _ := http.NewRequest("POST", "/auth/register", bytes.NewBuffer(jsonValue))
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
@@ -70,7 +69,7 @@ func TestAuthFlow(t *testing.T) {
 			"password": testPassword,
 		}
 		jsonValue, _ := json.Marshal(body)
-		req, _ := http.NewRequest("POST", "/api/v1/auth/register", bytes.NewBuffer(jsonValue))
+		req, _ := http.NewRequest("POST", "/auth/register", bytes.NewBuffer(jsonValue))
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
@@ -86,7 +85,7 @@ func TestAuthFlow(t *testing.T) {
 			"password": testPassword,
 		}
 		jsonValue, _ := json.Marshal(body)
-		req, _ := http.NewRequest("POST", "/api/v1/auth/login", bytes.NewBuffer(jsonValue))
+		req, _ := http.NewRequest("POST", "/auth/login", bytes.NewBuffer(jsonValue))
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 

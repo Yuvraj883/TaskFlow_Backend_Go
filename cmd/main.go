@@ -41,27 +41,8 @@ func main() {
 
 	// r.POST("/auth/register", handlers.Register)
 
-	api := r.Group("/api/v1")
-
-	auth := api.Group("/auth")
-	auth.Use(middleware.RateLimiter(5, 10*time.Second))
-	{
-		auth.POST("/register", handlers.Register)
-		auth.POST("/login", handlers.Login)
-	}
-	protected := api.Group("/")
-	protected.Use(middleware.AuthMiddleware())
-	protected.POST("/projects", handlers.CreateProject)
-	protected.GET("/projects", handlers.GetProjects)
-	protected.GET("/projects/:id", handlers.GetProject)
-	protected.GET("/projects/:id/stats", handlers.GetProjectStats)
-	protected.PATCH("/projects/:id", handlers.UpdateProject)
-	protected.DELETE("/projects/:id", handlers.DeleteProject)
-	
-	protected.POST("/projects/:id/tasks", handlers.CreateTask)
-	protected.GET("/projects/:id/tasks", handlers.GetTasks)
-	protected.DELETE("/tasks/:id", handlers.DeleteTask)
-	protected.PATCH("/tasks/:id", handlers.UpdateTask)
+	registerRoutes(r.Group("/"))
+	registerRoutes(r.Group("/api/v1"))
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -96,4 +77,26 @@ func main() {
 	}
 
 	slog.Info("Server exiting")
+}
+
+func registerRoutes(group *gin.RouterGroup) {
+	auth := group.Group("/auth")
+	auth.Use(middleware.RateLimiter(5, 10*time.Second))
+	{
+		auth.POST("/register", handlers.Register)
+		auth.POST("/login", handlers.Login)
+	}
+
+	protected := group.Group("/")
+	protected.Use(middleware.AuthMiddleware())
+	protected.POST("/projects", handlers.CreateProject)
+	protected.GET("/projects", handlers.GetProjects)
+	protected.GET("/projects/:id", handlers.GetProject)
+	protected.GET("/projects/:id/stats", handlers.GetProjectStats)
+	protected.PATCH("/projects/:id", handlers.UpdateProject)
+	protected.DELETE("/projects/:id", handlers.DeleteProject)
+	protected.POST("/projects/:id/tasks", handlers.CreateTask)
+	protected.GET("/projects/:id/tasks", handlers.GetTasks)
+	protected.DELETE("/tasks/:id", handlers.DeleteTask)
+	protected.PATCH("/tasks/:id", handlers.UpdateTask)
 }

@@ -1,3 +1,4 @@
 .env
 .DS_Store
 debug_bin
+*__debug_bin*

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"regexp"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -12,7 +13,8 @@ var DB *pgxpool.Pool
 
 func Connect() {
 	dsn := os.Getenv("DATABASE_URL")
-	slog.Info("Connecting to DB", slog.String("dsn", dsn))
+	redactedDSN := regexp.MustCompile(`://[^:]+:[^@]+@`).ReplaceAllString(dsn, "://***:***@")
+	slog.Info("Connecting to DB", slog.String("dsn", redactedDSN))
 
 	pool, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {

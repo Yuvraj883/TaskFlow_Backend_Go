@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"taskflow/internal/db"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 )
 
 type CreateProjectInput struct {
@@ -102,6 +104,7 @@ func GetProjects(c *gin.Context) {
 
 func GetProject(c *gin.Context) {
 	id := c.Param("id")
+	userID, _ := c.Get("user_id")
 
 	var project map[string]interface{} = make(map[string]interface{})
 	var pid, name, ownerID string
@@ -112,9 +115,31 @@ func GetProject(c *gin.Context) {
 		`SELECT id, name, description, owner_id, updated_at FROM projects WHERE id = $1`, id).
 		Scan(&pid, &name, &description, &ownerID, &updatedAt)
 
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		c.JSON(404, gin.H{"error": "not found"})
 		return
+	}
+	if err != nil {
+		c.JSON(500, gin.H{"error": "database error"})
+		return
+	}
+
+	if ownerID != userID {
+		var assigned bool
+		err = db.DB.QueryRow(
+			c.Request.Context(),
+			`SELECT EXISTS (SELECT 1 FROM tasks WHERE project_id=$1 AND assignee_id=$2)`,
+			id,
+			userID,
+		).Scan(&assigned)
+		if err != nil {
+			c.JSON(500, gin.H{"error": "database error"})
+			return
+		}
+		if !assigned {
+			c.JSON(403, gin.H{"error": "forbidden"})
+			return
+		}
 	}
 
 	project["id"] = pid
@@ -160,8 +185,19 @@ func GetProjectStats(c *gin.Context) {
 	id := c.Param("id")
 	userID, _ := c.Get("user_id")
 
+	var projectExists bool
+	err := db.DB.QueryRow(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM projects WHERE id=$1)`, id).Scan(&projectExists)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "database error"})
+		return
+	}
+	if !projectExists {
+		c.JSON(404, gin.H{"error": "not found"})
+		return
+	}
+
 	var allowed bool
-	err := db.DB.QueryRow(c.Request.Context(),
+	err = db.DB.QueryRow(c.Request.Context(),
 		`SELECT EXISTS (
 			SELECT 1 FROM projects p
 			LEFT JOIN tasks t ON p.id = t.project_id
@@ -221,8 +257,19 @@ func UpdateProject(c *gin.Context) {
 	id := c.Param("id")
 	userID, _ := c.Get("user_id")
 
+	var projectExists bool
+	err := db.DB.QueryRow(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM projects WHERE id=$1)`, id).Scan(&projectExists)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "database error"})
+		return
+	}
+	if !projectExists {
+		c.JSON(404, gin.H{"error": "not found"})
+		return
+	}
+
 	var exists bool
-	err := db.DB.QueryRow(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM projects WHERE id=$1 AND owner_id=$2)`, id, userID).Scan(&exists)
+	err = db.DB.QueryRow(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM projects WHERE id=$1 AND owner_id=$2)`, id, userID).Scan(&exists)
 	if err != nil || !exists {
 		c.JSON(403, gin.H{"error": "forbidden"})
 		return
@@ -286,8 +333,19 @@ func DeleteProject(c *gin.Context) {
 
 	updatedAt := c.Query("updated_at")
 
+	var projectExists bool
+	err := db.DB.QueryRow(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM projects WHERE id=$1)`, id).Scan(&projectExists)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "database error"})
+		return
+	}
+	if !projectExists {
+		c.JSON(404, gin.H{"error": "not found"})
+		return
+	}
+
 	var exists bool
-	err := db.DB.QueryRow(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM projects WHERE id=$1 AND owner_id=$2)`, id, userID).Scan(&exists)
+	err = db.DB.QueryRow(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM projects WHERE id=$1 AND owner_id=$2)`, id, userID).Scan(&exists)
 	if err != nil || !exists {
 		c.JSON(403, gin.H{"error": "forbidden"})
 		return

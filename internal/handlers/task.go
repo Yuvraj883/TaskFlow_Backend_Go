@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"taskflow/internal/utils"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 )
 
 type CreateTaskInput struct {
@@ -49,16 +51,17 @@ func CreateTask(c *gin.Context) {
 		return
 	}
 
-	// 🔒 Check if user owns project
-	var exists bool
-	err = db.DB.QueryRow(c.Request.Context(),
-		`SELECT EXISTS (
-			SELECT 1 FROM projects WHERE id=$1 AND owner_id=$2
-		)`,
-		projectID, userID,
-	).Scan(&exists)
-
-	if err != nil || !exists {
+	var ownerID string
+	err = db.DB.QueryRow(c.Request.Context(), `SELECT owner_id FROM projects WHERE id=$1`, projectID).Scan(&ownerID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		c.JSON(404, gin.H{"error": "not found"})
+		return
+	}
+	if err != nil {
+		c.JSON(500, gin.H{"error": "database error"})
+		return
+	}
+	if ownerID != userID {
 		c.JSON(403, gin.H{"error": "forbidden"})
 		return
 	}
@@ -67,8 +70,8 @@ func CreateTask(c *gin.Context) {
 	var updatedAt time.Time
 
 	err = db.DB.QueryRow(c.Request.Context(),
-		`INSERT INTO tasks (title, description, status, priority, project_id, assignee_id, due_date, updated_at)
-		 VALUES ($1, $2, 'todo', $3, $4, $5, $6, NOW())
+		`INSERT INTO tasks (title, description, status, priority, project_id, assignee_id, due_date, created_by, updated_at)
+		 VALUES ($1, $2, 'todo', $3, $4, $5, $6, $7, NOW())
 		 RETURNING id, updated_at`,
 		input.Title,
 		input.Description,
@@ -76,6 +79,7 @@ func CreateTask(c *gin.Context) {
 		projectID,
 		input.AssigneeID,
 		input.DueDate,
+		userID,
 	).Scan(&taskID, &updatedAt)
 
 	if err != nil {
@@ -91,8 +95,38 @@ func CreateTask(c *gin.Context) {
 
 func GetTasks(c *gin.Context) {
 	projectID := c.Param("id")
+	userID, _ := c.Get("user_id")
 	status := c.Query("status")
 	assignee := c.Query("assignee")
+
+	var ownerID string
+	err := db.DB.QueryRow(c.Request.Context(), `SELECT owner_id FROM projects WHERE id=$1`, projectID).Scan(&ownerID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		c.JSON(404, gin.H{"error": "not found"})
+		return
+	}
+	if err != nil {
+		c.JSON(500, gin.H{"error": "database error"})
+		return
+	}
+
+	if ownerID != userID {
+		var assigned bool
+		err = db.DB.QueryRow(
+			c.Request.Context(),
+			`SELECT EXISTS (SELECT 1 FROM tasks WHERE project_id=$1 AND assignee_id=$2)`,
+			projectID,
+			userID,
+		).Scan(&assigned)
+		if err != nil {
+			c.JSON(500, gin.H{"error": "database error"})
+			return
+		}
+		if !assigned {
+			c.JSON(403, gin.H{"error": "forbidden"})
+			return
+		}
+	}
 
 	query := `SELECT id, title, status, priority, updated_at FROM tasks WHERE project_id=$1`
 	args := []interface{}{projectID}
@@ -157,18 +191,23 @@ func DeleteTask(c *gin.Context) {
 
 	updatedAt := c.Query("updated_at")
 
-	var allowed bool
-
+	var ownerID, createdBy string
 	err := db.DB.QueryRow(c.Request.Context(),
-		`SELECT EXISTS (
-			SELECT 1 FROM tasks t
-			JOIN projects p ON t.project_id = p.id
-			WHERE t.id=$1 AND (p.owner_id=$2)
-		)`,
-		taskID, userID,
-	).Scan(&allowed)
-
-	if err != nil || !allowed {
+		`SELECT p.owner_id, t.created_by
+		 FROM tasks t
+		 JOIN projects p ON t.project_id = p.id
+		 WHERE t.id=$1`,
+		taskID,
+	).Scan(&ownerID, &createdBy)
+	if errors.Is(err, pgx.ErrNoRows) {
+		c.JSON(404, gin.H{"error": "not found"})
+		return
+	}
+	if err != nil {
+		c.JSON(500, gin.H{"error": "database error"})
+		return
+	}
+	if ownerID != userID && createdBy != userID {
 		c.JSON(403, gin.H{"error": "forbidden"})
 		return
 	}
@@ -225,8 +264,21 @@ func UpdateTask(c *gin.Context) {
         )`,
 		taskID, userID,
 	).Scan(&allowed)
-
-	if err != nil || !allowed {
+	if err != nil {
+		c.JSON(500, gin.H{"error": "database error"})
+		return
+	}
+	if !allowed {
+		var exists bool
+		err = db.DB.QueryRow(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM tasks WHERE id=$1)`, taskID).Scan(&exists)
+		if err != nil {
+			c.JSON(500, gin.H{"error": "database error"})
+			return
+		}
+		if !exists {
+			c.JSON(404, gin.H{"error": "not found"})
+			return
+		}
 		c.JSON(403, gin.H{"error": "forbidden"})
 		return
 	}
