@@ -63,7 +63,8 @@ func CreateTask(c *gin.Context) {
 		return
 	}
 
-	var taskID, updatedAt string
+	var taskID string
+	var updatedAt time.Time
 
 	err = db.DB.QueryRow(c.Request.Context(),
 		`INSERT INTO tasks (title, description, status, priority, project_id, assignee_id, due_date, updated_at)
